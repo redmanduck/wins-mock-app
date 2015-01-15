@@ -4,16 +4,20 @@ import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class MainActivity extends ActionBarActivity {
+    private Handler handler = new Handler();
 
     private WifiManager mWifiManager;
     @Override
@@ -21,18 +25,52 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+//        TextView lbl = (TextView)findViewById(R.id.sigtext);
         //get wifi manager
         mWifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
 
-        WifiInfo current = mWifiManager.getConnectionInfo();
+//        WifiInfo current = mWifiManager.getConnectionInfo();
 
-        List<ScanResult> other = mWifiManager.getScanResults();
-        for(ScanResult sr : other){
-            // BSSID is a function of MAC address
-            System.out.println( sr.BSSID  + " = " + sr.level);
-        }
+        handler.postDelayed(runnable, 100);
 
     }
+
+    private Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            List<ScanResult> other = mWifiManager.getScanResults();
+            runOnUiThread(new Runnable() {
+                //Clear result text
+                @Override
+                public void run() {
+
+                    TextView lbl = (TextView)findViewById(R.id.sigtext);
+                    lbl.setText("");
+                }
+            });
+            for(final ScanResult sr : other){
+
+                runOnUiThread(new Runnable() {
+                    //Update result text
+                    @Override
+                    public void run() {
+
+                        TextView lbl = (TextView)findViewById(R.id.sigtext);
+
+                        lbl.append(sr.BSSID + " (" +  sr.SSID + ") = " + sr.level + "\n");
+
+                    }
+                });
+
+
+            }
+
+            //rescan in another 1.5 second
+            handler.postDelayed(this, 1500);
+
+
+        }
+    };
 
 
     @Override
