@@ -83,7 +83,7 @@ public class MainActivity extends ActionBarActivity {
                 try {
                     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                     Log.i("seniordesign", path.getAbsolutePath());
-                    File file = new File(path,"xlog.txt");
+                    File file = new File(path, "xlog.txt");
                     if(!file.exists()){
                         file.createNewFile();
                     }
@@ -103,6 +103,7 @@ public class MainActivity extends ActionBarActivity {
 
                 }catch(Exception ex){
                     Log.e("seniordes", ex.toString());
+                    ex.printStackTrace();
                 }
 
 
