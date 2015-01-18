@@ -85,4 +85,26 @@
         android:layout_alignLeft="@+id/button_fwd"
         android:layout_alignStart="@+id/button_fwd" />
 
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Auto Terminate"
+        android:id="@+id/checkBox"
+        android:layout_below="@+id/textbox_cm"
+        android:layout_marginTop="35dp"
+        android:layout_alignRight="@+id/button_right"
+        android:layout_alignEnd="@+id/button_right"
+        android:enabled="true"
+        android:checked="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/filename_prefix"
+        android:layout_alignParentBottom="true"
+        android:layout_toRightOf="@+id/sigtext"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:hint="Prefix" />
+
 </RelativeLayout>

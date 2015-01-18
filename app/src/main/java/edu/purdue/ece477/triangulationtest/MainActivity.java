@@ -16,13 +16,18 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -64,16 +69,19 @@ public class MainActivity extends ActionBarActivity {
 
                 StringBuilder sb = new StringBuilder();
                 for(final ScanResult sr : other){
-                    sb.append(sr.BSSID + " (" +  sr.SSID + ") = " + sr.level + " level: " +
+
+                    sb.append(sr.BSSID + "," +  sr.SSID + "," + sr.level + "," +
                             mWifiManager.calculateSignalLevel(sr.level, 100) + "\n");
+
+
                     runOnUiThread(new Runnable() {
                         //Update result text
                         @Override
                         public void run() {
-                            TextView lbl = (TextView)findViewById(R.id.sigtext);
-                            lbl.append(sr.BSSID + " (" +  sr.SSID + ") = " + sr.level + "\n");
-                            TextView cc = (TextView)findViewById(R.id.countlbl);
-                            cc.setText(count+"");
+                            TextView lbl = (TextView) findViewById(R.id.sigtext);
+                            lbl.append(sr.BSSID + " (" + sr.SSID + ") = " + sr.level + "\n");
+                            TextView cc = (TextView) findViewById(R.id.countlbl);
+                            cc.setText(count + "");
                         }
                     });
 
@@ -83,12 +91,19 @@ public class MainActivity extends ActionBarActivity {
                 try {
                     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                     Log.i("seniordesign", path.getAbsolutePath());
-                    File file = new File(path, "xlog.txt");
+
+                    DateFormat dateFormat = new SimpleDateFormat("MM_dd-HH");
+                    Date date = new Date();
+
+                    EditText edt = (EditText)findViewById(R.id.filename_prefix);
+                    String bucket = "477_" + dateFormat.format(date);
+
+                    File file = new File(path, edt.getText() + bucket + ".txt");
                     if(!file.exists()){
                         file.createNewFile();
                     }
 
-                    FileWriter fileWritter = new FileWriter(file.getName(),true);
+                    FileWriter fileWritter = new FileWriter( file.getAbsoluteFile(),true);
                     BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
                     //write instruction header
                     bufferWritter.append( instruction );
@@ -145,6 +160,10 @@ public class MainActivity extends ActionBarActivity {
     private Runnable runnable = new Runnable() {
         @Override
         public void run() {
+            CheckBox cb = (CheckBox)findViewById(R.id.checkBox);
+            if(count == 50 &&  cb.isChecked()){
+                stoplog(null);
+            }
             if(!scanning) {
                 count = 0;
                 runOnUiThread(new Runnable() {
