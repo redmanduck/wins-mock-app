@@ -20,14 +20,34 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
+import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
+import com.squareup.okhttp.Response;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Hashtable;
 import java.util.List;
 
 
@@ -39,16 +59,18 @@ public class MainActivity extends ActionBarActivity {
 
     public volatile int count;
     private WifiManager mWifiManager;
+    public volatile String scanmode;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         count = 0;
-//        TextView lbl = (TextView)findViewById(R.id.sigtext);
-        //get wifi manager
+
         mWifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
         scanning = false;
-//        WifiInfo current = mWifiManager.getConnectionInfo();
+
+        final Gson gson = new Gson();
+
 
         IntentFilter i = new IntentFilter();
         i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
@@ -67,11 +89,23 @@ public class MainActivity extends ActionBarActivity {
                     }
                 });
 
+
+                final EditText edt = (EditText)findViewById(R.id.filename_prefix);
+                ArrayList<Hashtable<String,String>> packet = new ArrayList<Hashtable<String, String>>();
                 StringBuilder sb = new StringBuilder();
                 for(final ScanResult sr : other){
 
                     sb.append(sr.BSSID + "," +  sr.SSID + "," + sr.level + "," +
                             mWifiManager.calculateSignalLevel(sr.level, 100) + "\n");
+
+                    Hashtable<String, String> entry = new Hashtable<>();
+                    entry.put("bssid", sr.BSSID);
+                    entry.put("ssid",sr.SSID);
+                    entry.put("level", String.valueOf(sr.level));
+                    entry.put("levelnorm", String.valueOf( mWifiManager.calculateSignalLevel(sr.level, 100)));
+                    entry.put("session", edt.getText() + ", " + scanmode);
+
+                    packet.add(entry);
 
 
                     runOnUiThread(new Runnable() {
@@ -89,13 +123,41 @@ public class MainActivity extends ActionBarActivity {
                 }
 
                 try {
+
+
+                    final String json = gson.toJson(packet);
+
                     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    Log.i("seniordesign", path.getAbsolutePath());
+
+
+                    Thread thread = new Thread() {
+                        @Override
+                        public void run() {
+                            MediaType JSON = MediaType.parse("text/html ; charset=utf-8");
+                            OkHttpClient client = new OkHttpClient();
+                            RequestBody body = RequestBody.create(JSON, json);
+                            Request request = new Request.Builder()
+                                    .url("http://web.ics.purdue.edu/~ssabpisa/WINS/add.php")
+                                    .put(body)
+                                    .build();
+                            try{
+                                Response response = client.newCall(request).execute();
+                                String resp =  response.body().string();
+                                Log.i("result", resp);
+                            }catch(Exception ex){
+                                Log.e("error", ex.toString());
+                            }
+
+                        }
+                    };
+
+                    thread.start();
+
 
                     DateFormat dateFormat = new SimpleDateFormat("MM_dd-HH");
                     Date date = new Date();
 
-                    EditText edt = (EditText)findViewById(R.id.filename_prefix);
+
                     String bucket = "477_" + dateFormat.format(date);
 
                     File file = new File(path, edt.getText() + bucket + ".txt");
@@ -136,6 +198,7 @@ public class MainActivity extends ActionBarActivity {
         Log.i("477","recording forward");
         instruction = "=====fwd|" + dist.getText() +"\n";
         scanning = true;
+        scanmode = "FORWARD";
     }
 
     public void leftlog(View v){
@@ -144,6 +207,7 @@ public class MainActivity extends ActionBarActivity {
         Log.i("477","recording left");
         instruction = "=====left|" + dist.getText() +"\n";
         scanning = true;
+        scanmode = "LEFT";
     }
 
     public void rightlog(View v){
@@ -151,10 +215,12 @@ public class MainActivity extends ActionBarActivity {
         Log.i("477","recording right");
         instruction = "=====right|" + dist.getText() +"\n";
         scanning = true;
+        scanmode = "RIGHT";
     }
 
     public void stoplog(View v){
         scanning = false;
+        scanmode = "";
     }
 
     private Runnable runnable = new Runnable() {
