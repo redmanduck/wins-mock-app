@@ -5,7 +5,7 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity">
 
-    <TextView android:text="@string/hello_world" android:layout_width="wrap_content"
+    <TextView android:text="No Data" android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:lines="50"
         android:id="@+id/sigtext"
@@ -17,7 +17,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="^"
+        android:text="FWD"
         android:id="@+id/button_fwd"
         android:layout_marginRight="41dp"
         android:layout_marginEnd="41dp"
@@ -30,7 +30,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="&lt;"
+        android:text="LEFT"
         android:id="@+id/button_left"
         android:layout_below="@+id/button_fwd"
         android:layout_toLeftOf="@+id/button_right"
@@ -40,7 +40,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text=">"
+        android:text="RGHT"
         android:id="@+id/button_right"
         android:layout_alignTop="@+id/button_left"
         android:layout_alignParentRight="true"
@@ -50,12 +50,13 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Stop"
+        android:text="STOP COLLECT"
         android:id="@+id/button_stop"
         android:layout_centerVertical="true"
         android:layout_toRightOf="@+id/sigtext"
-        android:layout_toEndOf="@+id/sigtext"
-        android:onClick="stoplog" />
+        android:onClick="stoplog"
+        android:layout_alignRight="@+id/button_right"
+        android:layout_alignEnd="@+id/button_right" />
 
     <EditText
         android:layout_width="wrap_content"
@@ -105,6 +106,63 @@
         android:layout_toRightOf="@+id/sigtext"
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
-        android:hint="Prefix" />
+        android:hint="Tag / Prefix" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Upload Data"
+        android:id="@+id/button"
+        android:onClick="uploadlog"
+        android:layout_below="@+id/button_stop"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignLeft="@+id/checkBox"
+        android:layout_alignStart="@+id/checkBox" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Scan Count"
+        android:id="@+id/textView"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignTop="@+id/sigtext"
+        android:layout_alignBottom="@+id/countlbl"
+        android:layout_alignLeft="@+id/button"
+        android:layout_alignStart="@+id/button" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Centimeter Tag"
+        android:id="@+id/textView2"
+        android:layout_below="@+id/button"
+        android:layout_toRightOf="@+id/sigtext"
+        android:layout_toEndOf="@+id/sigtext" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Tile 0"
+        android:id="@+id/textView3"
+        android:layout_below="@+id/countlbl"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignLeft="@+id/textView"
+        android:layout_alignStart="@+id/textView" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tile ++"
+        android:id="@+id/button2"
+        android:layout_below="@+id/textView3"
+        android:layout_toLeftOf="@+id/button_left"
+        android:layout_toStartOf="@+id/button_left"
+        android:onClick="nextTile" />
 
 </RelativeLayout>

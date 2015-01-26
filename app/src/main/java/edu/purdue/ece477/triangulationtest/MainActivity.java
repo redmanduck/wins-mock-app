@@ -4,6 +4,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -19,6 +23,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.squareup.okhttp.MediaType;
@@ -51,7 +56,10 @@ import java.util.Hashtable;
 import java.util.List;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements SensorEventListener {
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer;
+    private volatile Gson gson;
     private Handler handler = new Handler();
 
     public volatile String instruction;
@@ -60,23 +68,54 @@ public class MainActivity extends ActionBarActivity {
     public volatile int count;
     private WifiManager mWifiManager;
     public volatile String scanmode;
+    public volatile ArrayList<Hashtable<String,String>> packet, accpacket;
+
+    public volatile int tilecount;
+
+    public void nextTile(View v){
+        instruction = "===== NEXT TILE \n";
+        scanning = true;
+        scanmode = "TILE-BASED";
+
+        tilecount++;
+        TextView tilect = (TextView)findViewById(R.id.textView3);
+        tilect.setText("Tile " + tilecount);
+    }
+
+    public volatile float [] acceleration;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        tilecount = 0;
+
+        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
+        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+
         count = 0;
 
         mWifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
         scanning = false;
 
-        final Gson gson = new Gson();
+        gson = new Gson();
+
+        packet = new ArrayList<Hashtable<String, String>>();
+        accpacket = new ArrayList<Hashtable<String, String>>();
 
 
         IntentFilter i = new IntentFilter();
         i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+
         registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+
+                if(!scanning){
+                    handler.postDelayed(runnable, 100);
+                    return;
+                }
 
                 List<ScanResult> other = mWifiManager.getScanResults();
                 runOnUiThread(new Runnable() {
@@ -90,20 +129,24 @@ public class MainActivity extends ActionBarActivity {
                 });
 
 
-                final EditText edt = (EditText)findViewById(R.id.filename_prefix);
-                ArrayList<Hashtable<String,String>> packet = new ArrayList<Hashtable<String, String>>();
+
                 StringBuilder sb = new StringBuilder();
                 for(final ScanResult sr : other){
 
                     sb.append(sr.BSSID + "," +  sr.SSID + "," + sr.level + "," +
-                            mWifiManager.calculateSignalLevel(sr.level, 100) + "\n");
+                            mWifiManager.calculateSignalLevel(sr.level, 100) + ", " +  " TILE " + tilecount + ", ACC (xy) " + acceleration[0]
+                            + "," + acceleration[1] + "\n");
 
+                    EditText edt = (EditText)findViewById(R.id.filename_prefix);
                     Hashtable<String, String> entry = new Hashtable<>();
                     entry.put("bssid", sr.BSSID);
                     entry.put("ssid",sr.SSID);
                     entry.put("level", String.valueOf(sr.level));
                     entry.put("levelnorm", String.valueOf( mWifiManager.calculateSignalLevel(sr.level, 100)));
-                    entry.put("session", edt.getText() + ", " + scanmode);
+                    entry.put("session", edt.getText() + ", " + scanmode + ", TILE " + tilecount);
+                    entry.put("acc_x", acceleration[0] + "");
+                    entry.put("acc_y", acceleration[1] + "");
+                    entry.put("acc_z", acceleration[2] + "");
 
                     packet.add(entry);
 
@@ -125,33 +168,11 @@ public class MainActivity extends ActionBarActivity {
                 try {
 
 
-                    final String json = gson.toJson(packet);
 
                     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
 
-                    Thread thread = new Thread() {
-                        @Override
-                        public void run() {
-                            MediaType JSON = MediaType.parse("text/html ; charset=utf-8");
-                            OkHttpClient client = new OkHttpClient();
-                            RequestBody body = RequestBody.create(JSON, json);
-                            Request request = new Request.Builder()
-                                    .url("http://web.ics.purdue.edu/~ssabpisa/WINS/add.php")
-                                    .put(body)
-                                    .build();
-                            try{
-                                Response response = client.newCall(request).execute();
-                                String resp =  response.body().string();
-                                Log.i("result", resp);
-                            }catch(Exception ex){
-                                Log.e("error", ex.toString());
-                            }
 
-                        }
-                    };
-
-                    thread.start();
 
 
                     DateFormat dateFormat = new SimpleDateFormat("MM_dd-HH");
@@ -159,7 +180,7 @@ public class MainActivity extends ActionBarActivity {
 
 
                     String bucket = "477_" + dateFormat.format(date);
-
+                    EditText edt = (EditText)findViewById(R.id.filename_prefix);
                     File file = new File(path, edt.getText() + bucket + ".txt");
                     if(!file.exists()){
                         file.createNewFile();
@@ -221,6 +242,123 @@ public class MainActivity extends ActionBarActivity {
     public void stoplog(View v){
         scanning = false;
         scanmode = "";
+        count = 0;
+        tilecount = 0;
+        TextView tilect = (TextView)findViewById(R.id.textView3);
+        tilect.setText("Tile " + tilecount);
+
+        TextView scancount = (TextView)findViewById(R.id.countlbl);
+        scancount.setText("" + count);
+
+
+    }
+
+    public void uploadlog(View v){
+        final String json = gson.toJson(packet);
+
+        Thread threadA = new Thread() {
+            @Override
+            public void run() {
+                MediaType JSON = MediaType.parse("text/html ; charset=utf-8");
+                OkHttpClient client = new OkHttpClient();
+                RequestBody body = RequestBody.create(JSON, json);
+                Request request = new Request.Builder()
+                        .url("http://web.ics.purdue.edu/~ssabpisa/WINS/add.php")
+                        .put(body)
+                        .build();
+                try{
+                    Response response = client.newCall(request).execute();
+                    String resp =  response.body().string();
+                    Log.i("result", resp);
+                    runOnUiThread(new Runnable() {
+                        //Clear result text
+                        @Override
+                        public void run() {
+                            Context context = getApplicationContext();
+                            CharSequence text = "Uploaded Signal Data!";
+                            int duration = Toast.LENGTH_SHORT;
+
+                            Toast toast = Toast.makeText(context, text, duration);
+                            toast.show();
+                        }
+                    });
+                    packet.clear();
+
+                }catch(Exception ex){
+                    runOnUiThread(new Runnable() {
+                        //Clear result text
+                        @Override
+                        public void run() {
+                            Context context = getApplicationContext();
+                            CharSequence text = "Unable to upload Signal Data!";
+                            int duration = Toast.LENGTH_SHORT;
+
+                            Toast toast = Toast.makeText(context, text, duration);
+                            toast.show();
+                        }
+                    });
+
+                    Log.e("error", ex.toString());
+                }
+
+            }
+        };
+
+        final String jsonACC = gson.toJson(accpacket);
+        Thread threadB = new Thread() {
+            @Override
+            public void run() {
+                MediaType JSON = MediaType.parse("text/html ; charset=utf-8");
+                OkHttpClient client = new OkHttpClient();
+                RequestBody body = RequestBody.create(JSON, json);
+                Request request = new Request.Builder()
+                        .url("http://web.ics.purdue.edu/~ssabpisa/WINS/add_acc.php")
+                        .put(body)
+                        .build();
+                try{
+                    Response response = client.newCall(request).execute();
+                    String resp =  response.body().string();
+                    Log.i("result", resp);
+
+
+                    runOnUiThread(new Runnable() {
+                        //Clear result text
+                        @Override
+                        public void run() {
+                            Context context = getApplicationContext();
+                            CharSequence text = "Uploaded Acceleration Data!";
+                            int duration = Toast.LENGTH_SHORT;
+
+                            Toast toast = Toast.makeText(context, text, duration);
+                            toast.show();
+                        }
+                    });
+                    accpacket.clear();
+                }catch(Exception ex){
+                    runOnUiThread(new Runnable() {
+                        //Clear result text
+                        @Override
+                        public void run() {
+                            Context context = getApplicationContext();
+                            CharSequence text = "Unable to upload Acceleration Data!";
+                            int duration = Toast.LENGTH_SHORT;
+
+                            Toast toast = Toast.makeText(context, text, duration);
+                            toast.show();
+                        }
+                    });
+
+                    Log.e("error", ex.toString());
+                }
+
+            }
+        };
+
+        threadB.start();
+        threadA.start();
+
+
+
     }
 
     private Runnable runnable = new Runnable() {
@@ -270,5 +408,26 @@ public class MainActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        //Log.i("accelerate", "x,y,z : (" + event.values[0] + ", " + event.values[1] + ", " + event.values[2] + ")" );
+        final EditText edt = (EditText)findViewById(R.id.filename_prefix);
+
+        Hashtable<String, String> entry = new Hashtable<>();
+        entry.put("acc_x", event.values[0] + "");
+        entry.put("acc_y", event.values[1] + "");
+        entry.put("acc_z", event.values[2] + "");
+        entry.put("session", edt.getText() + ", " + scanmode);
+
+        accpacket.add(entry);
+
+        acceleration = event.values.clone();
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 }
